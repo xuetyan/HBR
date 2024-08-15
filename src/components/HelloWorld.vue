@@ -1,32 +1,38 @@
 <template>
   <div class="main">
-    <div class="head"></div>
-    <el-table :data="characters" stripe>
-      <el-table-column type="expand">
-        <template #default="row">
-          <Card :data="row" />
-        </template>
-      </el-table-column>
-      <el-table-column prop="name" label="名称"></el-table-column>
-      <el-table-column prop="skill_1" label="技能1" :formatter="(_, __, val) => val || '-'"></el-table-column>
-      <el-table-column class-name="remark" prop="skill_1_remark" label="我的评价是"
-        :formatter="(_, __, val) => val || '技能在哪呢'"></el-table-column>
-      <el-table-column prop="skill_2" label="技能2" :formatter="(_, __, val) => val || '-'"></el-table-column>
-      <el-table-column class-name="remark" prop="skill_2_remark" label="我的评价是"
-        :formatter="(_, __, val) => val || '技能在哪呢'"></el-table-column>
-      <el-table-column prop="skill_3" label="技能3" :formatter="(_, __, val) => val || '-'"></el-table-column>
-      <el-table-column class-name="remark" prop="skill_3_remark" label="我的评价是"
-        :formatter="(_, __, val) => val || '技能在哪呢'"></el-table-column>
-      <el-table-column prop="skill_4" label="技能4" :formatter="(_, __, val) => val || '-'"></el-table-column>
-      <el-table-column class-name="remark" prop="skill_4_remark" label="我的评价是"
-        :formatter="(_, __, val) => val || '技能在哪呢'"></el-table-column>
-      <el-table-column prop="skill_5" label="技能5" :formatter="(_, __, val) => val || '-'"></el-table-column>
-      <el-table-column class-name="remark" prop="skill_5_remark" label="我的评价是"
-        :formatter="(_, __, val) => val || '技能在哪呢'"></el-table-column>
-      <el-table-column prop="skill_6" label="技能6" :formatter="(_, __, val) => val || '-'"></el-table-column>
-      <el-table-column class-name="remark" prop="skill_6_remark" label="我的评价是"
-        :formatter="(_, __, val) => val || '技能在哪呢'"></el-table-column>
-    </el-table>
+    <div class="head">
+      <el-select class="filter-item" v-model="cur_skill_type" placeholder="选择技能模式" @change="handleSkillType">
+        <el-option v-for="item in skill_type" :key="item.value" :label="item.label" :value="item.value" />
+      </el-select>
+    </div>
+    <div class="table-box">
+      <el-table :data="characters" stripe height="100%">
+        <el-table-column type="expand">
+          <template #default="row">
+            <Card :data="row" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="name" label="名称"></el-table-column>
+        <el-table-column prop="skill_1" label="技能1" :formatter="(_, __, val) => val || '-'"></el-table-column>
+        <el-table-column class-name="remark" prop="skill_1_remark" label="我的评价是"
+          :formatter="(_, __, val) => val || '技能在哪呢'"></el-table-column>
+        <el-table-column prop="skill_2" label="技能2" :formatter="(_, __, val) => val || '-'"></el-table-column>
+        <el-table-column class-name="remark" prop="skill_2_remark" label="我的评价是"
+          :formatter="(_, __, val) => val || '技能在哪呢'"></el-table-column>
+        <el-table-column prop="skill_3" label="技能3" :formatter="(_, __, val) => val || '-'"></el-table-column>
+        <el-table-column class-name="remark" prop="skill_3_remark" label="我的评价是"
+          :formatter="(_, __, val) => val || '技能在哪呢'"></el-table-column>
+        <el-table-column prop="skill_4" label="技能4" :formatter="(_, __, val) => val || '-'"></el-table-column>
+        <el-table-column class-name="remark" prop="skill_4_remark" label="我的评价是"
+          :formatter="(_, __, val) => val || '技能在哪呢'"></el-table-column>
+        <el-table-column prop="skill_5" label="技能5" :formatter="(_, __, val) => val || '-'"></el-table-column>
+        <el-table-column class-name="remark" prop="skill_5_remark" label="我的评价是"
+          :formatter="(_, __, val) => val || '技能在哪呢'"></el-table-column>
+        <el-table-column prop="skill_6" label="技能6" :formatter="(_, __, val) => val || '-'"></el-table-column>
+        <el-table-column class-name="remark" prop="skill_6_remark" label="我的评价是"
+          :formatter="(_, __, val) => val || '技能在哪呢'"></el-table-column>
+      </el-table>
+    </div>
   </div>
 </template>
 
@@ -36,9 +42,10 @@ import _skills from '@/assets/data/skills.js';
 import _characters from '@/assets/data/characters'
 import Card from './characterCard.vue'
 
-// eslint-disable-next-line no-unused-vars
-const skill_type = [{ val: 'All', label: '群体' },
-{ val: 'Single', label: '单体' }]
+const cur_skill_type = ref('')
+
+const skill_type = [{ value: 'All', label: '群体' },
+{ value: 'Single', label: '单体' }]
 
 const singleAttackSkillModel = (type, maxDamage, spNumber) => {
   const d = Number(maxDamage)
@@ -58,13 +65,18 @@ const singleAttackSkillModel = (type, maxDamage, spNumber) => {
   return { val: r, remark: remark() }
 }
 
-let characters = _characters
+let characters = ref(_characters)
 
 const init = () => {
-  characters = characters.map(m => {
+  characters = characters.value.map(m => {
     let character_skills = m.cards?.reduce((init, cur) => {
       // TODO
-      init.push(...cur?.skills.filter(f => f.e[0].includes('AttackSkill')))
+      let r = cur?.skills.filter(f => f.e[0].includes('AttackSkill'))
+
+      if (cur_skill_type.value) {
+        r = r?.filter(f => f.e[0].includes(cur_skill_type.value))
+      }
+      init.push(...r)
       return init
     }, [])
 
@@ -99,6 +111,10 @@ const init = () => {
 
 init()
 
+const handleSkillType = () => {
+  init()
+}
+
 </script>
 
 <style scoped>
@@ -107,6 +123,29 @@ init()
 }
 
 .main {
+  height: 100%;
+  width: 100%;
   display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.head {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.filter-item {
+  width: 240px;
+}
+
+.filter-item+.filter-item {
+  margin-left: 12px;
+}
+
+.table-box {
+  height: 0;
+  flex-grow: 1;
 }
 </style>
