@@ -10,7 +10,8 @@
   "dependencies": {
     "core-js": "^3.8.3",
     "element-plus": "^2.8.0",
-    "vue": "^3.2.13"
+    "vue": "^3.2.13",
+    "vue3-i18n": "^1.1.5"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
