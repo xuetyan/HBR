@@ -111,9 +111,7 @@ const singleAttackSkillModel = (type, maxDamage, spNumber) => {
 let characters = ref(_characters)
 
 const init = () => {
-  console.log(searchSpRange.value.oMinSp);
-
-  characters.value = characters.value.map(m => {
+  characters.value = _characters.map(m => {
     let character_skills = m.cards?.reduce((init, cur) => {
       // TODO
       let r = cur?.skills.filter(f => f.e[0].includes('AttackSkill'))
@@ -128,6 +126,8 @@ const init = () => {
     let b_skills_obj = {}
     let b_skills_remark = {}
 
+    // 技能计数
+    let count = 0
     for (const index in character_skills) {
       const character_skill = character_skills[index]
       const skill_msg = _skills.find(f => f.id === character_skill.i)
@@ -143,24 +143,24 @@ const init = () => {
           && skill_msg.sp_cost <= searchSpRange.value.oMaxSp
           && model.val >= searchSpRange.value.minSp
           && model.val <= searchSpRange.value.maxSp
-          && model.remark === searchSpRange.value.remark || !searchSpRange.value.remark)
+          && (model.remark === searchSpRange.value.remark || !searchSpRange.value.remark))
 
-        const b_skill_key = `skill_${Number(index) + 1}`
-        const skill_name = $t(`skill.name.${skill_msg.label}`)
-        b_skills_obj[b_skill_key] = flag ? `${skill_name} - ${skill_msg.sp_cost}sp （${model.val}sp）` : undefined
-        const b_skill_remark_key = `skill_${Number(index) + 1}_remark`
-        b_skills_remark[b_skill_remark_key] = flag ? model.remark : undefined
+        if (flag) {
+          const b_skill_key = `skill_${count + 1}`
+          const skill_name = $t(`skill.name.${skill_msg.label}`)
+          b_skills_obj[b_skill_key] = `${skill_name} - ${skill_msg.sp_cost}sp （${model.val}sp）`
+          const b_skill_remark_key = `skill_${count + 1}_remark`
+          b_skills_remark[b_skill_remark_key] = model.remark
+          count++
+        }
       } else {
         console.warn(character_skill);
       }
-
     }
 
     return { ...m, ...b_skills_obj, ...b_skills_remark }
   })
-  console.log(characters);
-
-
+  // console.log(characters.value)
 }
 
 init()
