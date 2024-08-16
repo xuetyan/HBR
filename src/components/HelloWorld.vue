@@ -15,7 +15,7 @@
           :min="searchSpRange.oMinSp" :max="99" @change="handleFilter"></el-input-number>
       </div>
       <div class="filter-item">
-        <div class="label">实际技能消耗</div>
+        <div class="label">实际技能消耗级别</div>
         <el-input-number class="sp-input" v-model="searchSpRange.minSp" size="small" step-strictly :step="1" :min="1"
           :max="searchSpRange.maxSp" @change="handleFilter"></el-input-number>
         <el-input-number class="sp-input" v-model="searchSpRange.maxSp" size="small" step-strictly :step="1"
@@ -184,7 +184,7 @@ const getCharacterName = (val) => {
 </script>
 
 <style scoped>
-::v-deep .remark {
+:deep(.remark) {
   color: #f51c77
 }
 
