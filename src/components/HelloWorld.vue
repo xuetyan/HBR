@@ -1,6 +1,13 @@
 <template>
   <div class="main">
     <div class="head">
+      <div class="filter-item long">
+        <div class="label">角色选择</div>
+        <el-select v-model="cur_checked_characters" placeholder="选择角色" multiple collapse-tags filterable clearable
+          @change="handleFilter">
+          <el-option v-for="item in _characters" :key="item.id" :label="item.name" :value="item.id" />
+        </el-select>
+      </div>
       <div class="filter-item">
         <div class="label">技能模式</div>
         <el-select v-model="cur_skill_type" placeholder="选择技能模式" clearable @change="handleFilter">
@@ -8,13 +15,25 @@
         </el-select>
       </div>
       <div class="filter-item">
+        <div class="label">技能类型</div>
+        <el-select v-model="cur_skill_type2" placeholder="选择技能类型" clearable @change="handleFilter">
+          <el-option v-for="item in skill_type2" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+      </div>
+      <div class="filter-item">
+        <div class="label">技能属性</div>
+        <el-select v-model="cur_skill_element" placeholder="选择技能属性" clearable @change="handleFilter">
+          <el-option v-for="item in skill_elements" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+      </div>
+      <div class="filter-item long">
         <div class="label">原技能消耗</div>
         <el-input-number class="sp-input" v-model="searchSpRange.oMinSp" size="small" step-strictly :step="1" :min="1"
           :max="searchSpRange.oMaxSp" @change="handleFilter"></el-input-number>
         <el-input-number class="sp-input" v-model="searchSpRange.oMaxSp" size="small" step-strictly :step="1"
           :min="searchSpRange.oMinSp" :max="99" @change="handleFilter"></el-input-number>
       </div>
-      <div class="filter-item">
+      <div class="filter-item long">
         <div class="label">实际技能消耗级别</div>
         <el-input-number class="sp-input" v-model="searchSpRange.minSp" size="small" step-strictly :step="1" :min="1"
           :max="searchSpRange.maxSp" @change="handleFilter"></el-input-number>
@@ -25,6 +44,13 @@
         <div class="label">技能评价</div>
         <el-select v-model="searchSpRange.remark" placeholder="技能评价" clearable @change="handleFilter">
           <el-option v-for="item in skill_remark" :key="item.value" :label="item.label" :value="item.value">
+          </el-option>
+        </el-select>
+      </div>
+      <div class="filter-item">
+        <div class="label">是否有次数限制</div>
+        <el-select v-model="cur_skill_use" placeholder="全部" clearable @change="handleFilter">
+          <el-option v-for="item in skill_use" :key="item.value" :label="item.label" :value="item.value">
           </el-option>
         </el-select>
       </div>
@@ -39,7 +65,9 @@
         </el-table-column>
         <el-table-column prop="name" label="名称">
           <template #default="{ row }">
-            {{ getCharacterName(row.label) }}
+            <span>{{ getCharacterName(row.label) }}</span>
+            <br>
+            <span>{{ row.team }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="skill_1" label="技能1" :formatter="(_, __, val) => val || '-'"></el-table-column>
@@ -72,10 +100,17 @@ import _skills from '@/assets/data/skills.js';
 import _characters from '@/assets/data/characters'
 import Card from './characterCard.vue'
 
-// eslint-disable-next-line no-unused-vars
 const $t = useI18n().t
 
 const cur_skill_type = ref('')
+
+const cur_checked_characters = ref([])
+
+const cur_skill_type2 = ref('')
+
+const cur_skill_element = ref('')
+
+const cur_skill_use = ref('')
 
 const searchSpRange = ref({
   oMinSp: 4,
@@ -85,10 +120,16 @@ const searchSpRange = ref({
   remark: ''
 })
 
-const skill_type = [{ value: 'All', label: '群体' },
-{ value: 'Single', label: '单体' }]
+const skill_type = [{ value: 'All', label: '群体' }, { value: 'Single', label: '单体' }]
+
+const skill_type2 = [{ value: 'Slash', label: '斩' }, { value: 'Stab', label: '突' }, { value: 'Strike', label: '打' }]
+
+const skill_elements = [{ value: 'Fire', label: '火' }, { value: 'Ice', label: '冰' }, { value: 'Thunder', label: '雷' }, { value: 'Light', label: '光' }, { value: 'Dark', label: '暗' }, { value: 'None', label: '无' }]
+const all_eles = skill_elements.map(m => m.value)
 
 const skill_remark = [{ value: '平平无奇', label: '平平无奇' }, { value: '超模', label: '超模' }, { value: '低模', label: '低模' }]
+
+const skill_use = [{value: -1, label: '无限制'}, {value: 1, label: '有限制'}]
 
 const singleAttackSkillModel = (type, maxDamage, spNumber) => {
   const d = Number(maxDamage)
@@ -110,14 +151,37 @@ const singleAttackSkillModel = (type, maxDamage, spNumber) => {
 
 let characters = ref(_characters)
 
+const attack_skill_msg = (data) => {
+  return data.e.find(f => f.includes('AttackSkill'))
+}
+
 const init = () => {
   characters.value = _characters.map(m => {
-    let character_skills = m.cards?.reduce((init, cur) => {
-      // TODO
-      let r = cur?.skills.filter(f => f.e[0].includes('AttackSkill'))
+    let cards = m.cards
+    // 攻击方式筛选
+    if (cur_skill_type2.value) {
+      cards = cards?.filter(f => f.type === cur_skill_type2.value)
+    }
 
+    let character_skills = cards?.reduce((init, cur) => {
+      // TODO
+      let r = cur?.skills.filter(f => f.e.some(s => s.includes('AttackSkill')))
+
+      // 技能模式筛选
       if (cur_skill_type.value) {
-        r = r?.filter(f => f.e[0].includes(cur_skill_type.value))
+        r = r?.filter(f => attack_skill_msg(f).includes(cur_skill_type.value))
+      }
+      // 技能是否有使用次数限制
+      if (cur_skill_use.value) {
+        r = r?.filter(f => (f.u > 0) === (cur_skill_use.value > 0))
+      }
+      // 技能属性筛选
+      if (cur_skill_element.value) {
+        if (cur_skill_element.value === 'None') {
+          r = r?.filter(f => !attack_skill_msg(f).some(s => all_eles.includes(s)))
+        } else {
+          r = r?.filter(f => attack_skill_msg(f).includes(cur_skill_element.value))
+        }
       }
       init.push(...r)
       return init
@@ -162,7 +226,7 @@ const init = () => {
   })
 
   characters.value = characters.value.filter(f => {
-    return Object.keys(f).some(s => s.match(/^skill_4/))
+    return Object.keys(f).some(s => s.match(/^skill_/))
   })
   // console.log(characters.value)
 }
@@ -215,7 +279,15 @@ const getCharacterName = (val) => {
 }
 
 .filter-item {
+  width: 140px;
+}
+
+.filter-item.long {
   width: 240px;
+}
+
+.filter-item :deep(.el-select__selection) {
+  flex-wrap: nowrap;
 }
 
 .filter-item+.filter-item {
@@ -223,7 +295,7 @@ const getCharacterName = (val) => {
 }
 
 .sp-input {
-  width: 80px;
+  width: 100px;
   margin: 0 2px;
 }
 
