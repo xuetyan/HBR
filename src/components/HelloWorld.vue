@@ -160,6 +160,10 @@ const init = () => {
 
     return { ...m, ...b_skills_obj, ...b_skills_remark }
   })
+
+  characters.value = characters.value.filter(f => {
+    return Object.keys(f).some(s => s.match(/^skill_4/))
+  })
   // console.log(characters.value)
 }
 
