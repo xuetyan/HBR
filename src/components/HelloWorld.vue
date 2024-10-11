@@ -125,11 +125,10 @@ const skill_type = [{ value: 'All', label: '群体' }, { value: 'Single', label:
 const skill_type2 = [{ value: 'Slash', label: '斩' }, { value: 'Stab', label: '突' }, { value: 'Strike', label: '打' }]
 
 const skill_elements = [{ value: 'Fire', label: '火' }, { value: 'Ice', label: '冰' }, { value: 'Thunder', label: '雷' }, { value: 'Light', label: '光' }, { value: 'Dark', label: '暗' }, { value: 'None', label: '无' }]
-const all_eles = skill_elements.map(m => m.value)
 
 const skill_remark = [{ value: '平平无奇', label: '平平无奇' }, { value: '超模', label: '超模' }, { value: '低模', label: '低模' }]
 
-const skill_use = [{value: -1, label: '无限制'}, {value: 1, label: '有限制'}]
+const skill_use = [{ value: -1, label: '无限制' }, { value: 1, label: '有限制' }]
 
 const singleAttackSkillModel = (type, maxDamage, spNumber) => {
   const d = Number(maxDamage)
@@ -151,38 +150,35 @@ const singleAttackSkillModel = (type, maxDamage, spNumber) => {
 
 let characters = ref(_characters)
 
-const attack_skill_msg = (data) => {
-  return data.e.find(f => f.includes('AttackSkill'))
+const skill_filter = ['AttackSkill', 'SkillCondition']
+function hasIntersection(arr1, arr2 = skill_filter) {
+  const set2 = new Set(arr2);
+  return arr1.filter(item => set2.has(item)).length > 0;
 }
 
 const init = () => {
-  characters.value = _characters.map(m => {
+  // 角色筛选
+  if (cur_checked_characters.value && cur_checked_characters.value.length) {
+    characters.value = _characters.filter(f => cur_checked_characters.value.includes(f.id))
+  } else {
+    characters.value = _characters
+  }
+
+  characters.value = characters.value.map(m => {
     let cards = m.cards
     // 攻击方式筛选
     if (cur_skill_type2.value) {
       cards = cards?.filter(f => f.type === cur_skill_type2.value)
     }
 
-    let character_skills = cards?.reduce((init, cur) => {
-      // TODO
-      let r = cur?.skills.filter(f => f.e.some(s => s.includes('AttackSkill')))
+    if(cards.length === 0) {
+      return m
+    }
 
-      // 技能模式筛选
-      if (cur_skill_type.value) {
-        r = r?.filter(f => attack_skill_msg(f).includes(cur_skill_type.value))
-      }
-      // 技能是否有使用次数限制
-      if (cur_skill_use.value) {
-        r = r?.filter(f => (f.u > 0) === (cur_skill_use.value > 0))
-      }
-      // 技能属性筛选
-      if (cur_skill_element.value) {
-        if (cur_skill_element.value === 'None') {
-          r = r?.filter(f => !attack_skill_msg(f).some(s => all_eles.includes(s)))
-        } else {
-          r = r?.filter(f => attack_skill_msg(f).includes(cur_skill_element.value))
-        }
-      }
+    // 从角色信息中获取技能信息
+    let character_skills = cards?.reduce((init, cur) => {
+      // TODO SkillCondition 条件技能 AttackSkill 攻击技能
+      let r = cur?.skills.filter(f => f.e.some(s => hasIntersection(s)))
       init.push(...r)
       return init
     }, [])
@@ -198,27 +194,48 @@ const init = () => {
       if (skill_msg === undefined) {
         console.warn(character_skill);
       }
-      const part = skill_msg?.parts[0]
-      // 技能模型计算
-      if (part) {
-        const model = singleAttackSkillModel(part.target_type, part.power[1], skill_msg.sp_cost)
-        // 筛选条件
-        const flag = (skill_msg.sp_cost >= searchSpRange.value.oMinSp
-          && skill_msg.sp_cost <= searchSpRange.value.oMaxSp
-          && model.val >= searchSpRange.value.minSp
-          && model.val <= searchSpRange.value.maxSp
-          && (model.remark === searchSpRange.value.remark || !searchSpRange.value.remark))
 
-        if (flag) {
-          const b_skill_key = `skill_${count + 1}`
-          const skill_name = $t(`skill.name.${skill_msg.label}`)
-          b_skills_obj[b_skill_key] = `${skill_name} - ${skill_msg.sp_cost}sp （${model.val}sp）`
-          const b_skill_remark_key = `skill_${count + 1}_remark`
-          b_skills_remark[b_skill_remark_key] = model.remark
-          count++
+      let part = skill_msg?.parts[0]
+
+      const get_skill = (_part) => {
+        // 技能模型计算
+        if (_part) {
+          const model = singleAttackSkillModel(_part.target_type, _part.power[1], skill_msg.sp_cost)
+          // 筛选条件
+          const flag = (skill_msg.sp_cost >= searchSpRange.value.oMinSp
+            && skill_msg.sp_cost <= searchSpRange.value.oMaxSp
+            && model.val >= searchSpRange.value.minSp
+            && model.val <= searchSpRange.value.maxSp
+            && (model.remark === searchSpRange.value.remark || !searchSpRange.value.remark)
+            && (!cur_skill_type.value || _part.target_type === cur_skill_type.value)
+            && (!cur_skill_use.value || (cur_skill_use.value > 0) === !!_part.use_count)
+            && (!cur_skill_element.value || _part.elements.includes(cur_skill_element.value))
+          )
+
+          if (flag) {
+            const b_skill_key = `skill_${count + 1}`
+            const skill_name = $t(`skill.name.${skill_msg.label}`)
+            b_skills_obj[b_skill_key] = `${skill_name} - ${skill_msg.sp_cost}sp （${model.val}sp）`
+            const b_skill_remark_key = `skill_${count + 1}_remark`
+            b_skills_remark[b_skill_remark_key] = model.remark
+            count++
+          }
+        } else {
+          console.warn(character_skill);
+        }
+      }
+
+      // 条件技能
+      if (part.skill_type === 'SkillCondition') {
+        const strval = part.strval
+        for (const s of strval) {
+          part = s.parts[0]
+          if(skill_filter.includes(part.skill_type) && (!cur_skill_element.value || part.elements.includes(cur_skill_element.value))) {
+            get_skill(part)
+          }
         }
       } else {
-        console.warn(character_skill);
+        get_skill(part)
       }
     }
 
